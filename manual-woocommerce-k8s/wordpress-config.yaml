@@ -1,0 +1,28 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: wordpress-config
+  namespace: store-manual-test
+data:
+  # WordPress Admin Settings
+  WP_ADMIN_USER: "admin"
+  WP_ADMIN_PASSWORD: "AdminPass123!"
+  WP_ADMIN_EMAIL: "admin@example.com"
+  WP_SITE_TITLE: "My WooCommerce Store"
+  WP_SITE_URL: "http://localhost:8080"
+
+  # WooCommerce Store Settings
+  WC_STORE_NAME: "My Awesome Store"
+  WC_STORE_ADDRESS: "123 MG Road"
+  WC_STORE_CITY: "Mumbai"
+  WC_STORE_POSTCODE: "400001"
+  WC_STORE_COUNTRY: "IN"
+  WC_STORE_CURRENCY: "INR"
+
+  # --- FIXED DATA STRUCTURE (Name|Price|Description) ---
+  SAMPLE_PRODUCTS: |
+    Classic Cotton T-Shirt|1599|A comfortable pure cotton t-shirt for daily wear.
+    Blue Denim Jeans|3999|Rugged and stylish blue denim jeans.
+    Urban Sneakers|6499|Lightweight sneakers perfect for running or casual wear.
+    Travel Backpack|3299|Water-resistant backpack with laptop compartment.
+    Luxury Wrist Watch|10999|Analog watch with leather strap and water resistance.
