@@ -1,0 +1,15 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: {{ wordpress_service_name }}
+  namespace: {{ namespace }}
+spec:
+  selector:
+    app: wordpress
+  ports:
+    - port: {{ wordpress_port }}
+      targetPort: 80
+      protocol: TCP
+      name: http
+  # This exposes the service externally
+  type: {{ wordpress_service_type }}

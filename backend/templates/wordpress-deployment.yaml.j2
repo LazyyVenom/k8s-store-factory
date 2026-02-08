@@ -1,0 +1,93 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ wordpress_deployment_name }}
+  namespace: {{ namespace }}
+spec:
+  replicas: {{ wordpress_replicas }}
+  selector:
+    matchLabels:
+      app: wordpress
+  template:
+    metadata:
+      labels:
+        app: wordpress
+    spec:
+      initContainers:
+        - name: wp-init
+          image: {{ wordpress_cli_image }}
+          command:
+            - /bin/bash
+            - -c
+            - |
+              mkdir -p /tmp/conf.d
+              echo "memory_limit = 512M" > /tmp/conf.d/custom.ini
+              export PHP_INI_SCAN_DIR=:$PHP_INI_SCAN_DIR:/tmp/conf.d
+
+              # --- FIX: Filter Logs ---
+              # We redirect stderr to stdout (2>&1) and filter out the noisy warnings
+              /scripts/wp-setup.sh 2>&1 | grep -v "already loaded"
+          envFrom:
+            - configMapRef:
+                name: {{ wordpress_config_name }}
+          env:
+            - name: WORDPRESS_DB_HOST
+              value: {{ mysql_service_name }}:3306
+            - name: WORDPRESS_DB_NAME
+              valueFrom:
+                secretKeyRef:
+                  name: {{ mysql_secret_name }}
+                  key: mysql-database
+            - name: WORDPRESS_DB_USER
+              valueFrom:
+                secretKeyRef:
+                  name: {{ mysql_secret_name }}
+                  key: mysql-user
+            - name: WORDPRESS_DB_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: {{ mysql_secret_name }}
+                  key: mysql-password
+          volumeMounts:
+            - name: wordpress-storage
+              mountPath: /var/www/html
+            - name: setup-script
+              mountPath: /scripts
+      containers:
+        - name: wordpress
+          image: {{ wordpress_image }}
+          ports:
+            - containerPort: 80
+              name: http
+          env:
+            - name: WORDPRESS_DB_HOST
+              value: {{ mysql_service_name }}:3306
+            - name: WORDPRESS_DB_NAME
+              valueFrom:
+                secretKeyRef:
+                  name: {{ mysql_secret_name }}
+                  key: mysql-database
+            - name: WORDPRESS_DB_USER
+              valueFrom:
+                secretKeyRef:
+                  name: {{ mysql_secret_name }}
+                  key: mysql-user
+            - name: WORDPRESS_DB_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: {{ mysql_secret_name }}
+                  key: mysql-password
+          envFrom:
+            - configMapRef:
+                name: {{ wordpress_config_name }}
+          volumeMounts:
+            - name: wordpress-storage
+              mountPath: /var/www/html
+      volumes:
+        - name: wordpress-storage
+          persistentVolumeClaim:
+            claimName: {{ wordpress_pvc_name }}
+        - name: setup-script
+          configMap:
+            name: {{ wp_setup_script_name }}
+            defaultMode: 0755

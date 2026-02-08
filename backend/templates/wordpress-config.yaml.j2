@@ -1,0 +1,23 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: {{ wordpress_config_name }}
+  namespace: {{ namespace }}
+data:
+  # WordPress Admin Settings
+  WP_ADMIN_USER: "{{ wp_admin_user }}"
+  WP_ADMIN_PASSWORD: "{{ wp_admin_password }}"
+  WP_ADMIN_EMAIL: "{{ wp_admin_email }}"
+  WP_SITE_TITLE: "{{ wp_site_title }}"
+  WP_SITE_URL: "{{ wp_site_url }}"
+
+  # WooCommerce Store Settings
+  WC_STORE_NAME: "{{ wc_store_name }}"
+  WC_STORE_ADDRESS: "{{ wc_store_address }}"
+  WC_STORE_CITY: "{{ wc_store_city }}"
+  WC_STORE_POSTCODE: "{{ wc_store_postcode }}"
+  WC_STORE_COUNTRY: "{{ wc_store_country }}"
+  WC_STORE_CURRENCY: "{{ wc_store_currency }}"
+
+  # --- FIXED DATA STRUCTURE (Name|Price|Description) ---
+  SAMPLE_PRODUCTS: "{{ sample_products }}"
