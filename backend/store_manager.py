@@ -4,17 +4,38 @@ from k8s_client import K8sClient
 from templates.mysql import get_mysql_secret, get_mysql_service, get_mysql_statefulset
 from templates.wordpress import get_wordpress_config, get_wordpress_pvc, get_wp_setup_script, get_wordpress_deployment, get_wordpress_service
 from templates.ingress import get_ingress
+import database
 
 class StoreManager:
     def __init__(self):
         self.k8s = K8sClient()
+        # database.init_db() - Now handled in app.py
     
     def generate_store_id(self):
         """Generate unique store ID"""
         return secrets.token_hex(4)
     
-    def create_store(self, sample_products=None, store_url_suffix=None, admin_password=None):
+    def create_store(self, user_id, sample_products=None, store_url_suffix=None, admin_password=None, storage_size_gi=2):
         """Create a new store"""
+        # 1. Quota Check
+        user = database.get_user(user_id)
+        if not user:
+            return {"error": "User not found"}
+            
+        usage = database.get_user_usage(user_id)
+        current_stores = usage['store_count'] or 0
+        current_storage = usage['total_storage'] or 0
+        
+        if current_stores >= user['max_stores']:
+            return {"error": f"Store limit reached ({user['max_stores']} stores)."}
+            
+        # Assuming MySQL takes 2Gi fixed + requested Wordpress storage
+        total_request = storage_size_gi + 2
+        
+        if (current_storage + total_request) > user['max_storage_gi']:
+            return {"error": f"Storage quota exceeded. Available: {user['max_storage_gi'] - current_storage}Gi, Requested: {total_request}Gi"}
+
+        # 2. Creation Process
         store_id = self.generate_store_id()
         namespace = f"store-{store_id}"
         if store_url_suffix:
@@ -58,8 +79,8 @@ class StoreManager:
         if not self.k8s.create_configmap(namespace, wp_config):
             return {"error": "Failed to create WordPress config"}
         
-        # Create WordPress PVC
-        wp_pvc = get_wordpress_pvc(store_id)
+        # Create WordPress PVC (With custom size)
+        wp_pvc = get_wordpress_pvc(store_id, storage_size_gi)
         if not self.k8s.create_pvc(namespace, wp_pvc):
             return {"error": "Failed to create WordPress PVC"}
         
@@ -83,6 +104,9 @@ class StoreManager:
         if not self.k8s.create_ingress(namespace, ingress):
             return {"error": "Failed to create Ingress"}
         
+        # 3. Register in DB
+        database.register_store(store_id, user_id, total_request)
+
         print(f"✅ Store created successfully!\n")
         
         return {
@@ -93,29 +117,59 @@ class StoreManager:
             "admin_user": "admin",
             "admin_password": db_password,
             "status": "provisioning",
-            "created_at": time.time()
+            "created_at": time.time(),
+            "owner": user['username']
         }
     
-    def list_stores(self):
-        """List all stores"""
+    def list_stores(self, user_id=None):
+        """List all stores, optionally filtered by user"""
         namespaces = self.k8s.list_store_namespaces()
+        
+        # Use new database function that returns all stores at once
+        db_stores = database.get_all_stores_with_users()
+
         stores = []
         
         for ns in namespaces:
             store_id = ns.replace("store-", "")
+            
+            # Filter by user if provided
+            if user_id:
+                if store_id not in db_stores:
+                    continue # Skip unmanaged/system stores if filtering by user
+                if str(db_stores[store_id].get('user_id')) != str(user_id):
+                    continue
+
             status = self.k8s.get_namespace_status(ns)
             
-            stores.append({
+            store_data = {
                 "id": store_id,
                 "namespace": ns,
                 "url": f"http://store-{store_id}.local",
-                "status": status
-            })
+                "status": status,
+            }
+            
+            # Enrich with DB data
+            if store_id in db_stores:
+                store_data['owner'] = db_stores[store_id]['username']
+                store_data['storage_gi'] = db_stores[store_id]['storage_size_gi']
+            
+            stores.append(store_data)
         
         return stores
     
-    def delete_store(self, store_id):
+    def delete_store(self, store_id, user_id=None):
         """Delete a store"""
+        # Ownership check
+        if user_id:
+            db_stores = database.get_all_stores_with_users()
+            if store_id in db_stores:
+                store_owner_id = db_stores[store_id].get('user_id')
+                # Allow if user matches OR if user is admin (assuming admin has id=1 or specific role, simple check for now)
+                # For now strict ownership:
+                if str(store_owner_id) != str(user_id):
+                     return {"error": "Unauthorized: You do not own this store"}
+
         namespace = f"store-{store_id}"
         
         if not self.k8s.namespace_exists(namespace):
@@ -124,6 +178,8 @@ class StoreManager:
         print(f"\n=== Deleting store: {store_id} ===")
         
         if self.k8s.delete_namespace(namespace):
+            # Clean up DB
+            database.deregister_store(store_id)
             print(f"✅ Store deleted successfully!\n")
             return {"success": True}
         else:

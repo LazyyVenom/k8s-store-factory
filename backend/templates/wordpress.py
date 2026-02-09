@@ -27,7 +27,7 @@ def get_wordpress_config(store_id, db_password, store_url, sample_products):
         }
     )
 
-def get_wordpress_pvc(store_id):
+def get_wordpress_pvc(store_id, storage_size_gi=2):
     namespace = f"store-{store_id}"
     return client.V1PersistentVolumeClaim(
         metadata=client.V1ObjectMeta(
@@ -38,7 +38,7 @@ def get_wordpress_pvc(store_id):
             access_modes=["ReadWriteOnce"],
             resources=client.V1ResourceRequirements(
                 requests={
-                    "storage": "2Gi"
+                    "storage": f"{storage_size_gi}Gi"
                 }
             )
         )
