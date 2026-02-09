@@ -1,21 +1,42 @@
 from models import db, User, Store
 from sqlalchemy import func
 
-def init_db(app):
+def init_db(app, use_seed_data=False):
+    """
+    Initialize the database
+
+    Args:
+        app: Flask application instance
+        use_seed_data: If True, use comprehensive seed data from user_seeding.py
+                      If False, create only basic admin and demo users
+    """
     with app.app_context():
         db.create_all()
-        
+
         # Create default users if none exist
         if User.query.count() == 0:
-            print("Initializing default users...")
-            admin = User(username='admin', max_stores=10, max_storage_gi=50)
-            admin.set_password('admin123')
-            
-            demo = User(username='demo_user', max_stores=2, max_storage_gi=5)
-            demo.set_password('demo123')
-            
-            db.session.add_all([admin, demo])
-            db.session.commit()
+            if use_seed_data:
+                print("🌱 Using comprehensive seed data...")
+                try:
+                    from user_seeding import seed_users
+                    seed_users(app)
+                except ImportError:
+                    print("⚠️  user_seeding.py not found, creating basic users instead...")
+                    _create_basic_users()
+            else:
+                print("Initializing default users...")
+                _create_basic_users()
+
+def _create_basic_users():
+    """Create basic admin and demo users"""
+    admin = User(username='admin', max_stores=10, max_storage_gi=50)
+    admin.set_password('admin123')
+
+    demo = User(username='demo_user', max_stores=2, max_storage_gi=5)
+    demo.set_password('demo123')
+
+    db.session.add_all([admin, demo])
+    db.session.commit()
 
 def get_user(user_id):
     user = db.session.get(User, user_id)
