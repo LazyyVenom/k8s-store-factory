@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
-import { getStores, createStore, deleteStore } from './api';
-import { ExternalLink, Trash2, RefreshCw, ShoppingBag, Lock, Plus, X, Copy, Check } from 'lucide-react';
+import { getStores, createStore, deleteStore, getCurrentUser, logout } from './api';
+import { ExternalLink, Trash2, RefreshCw, ShoppingBag, Lock, Plus, X, Copy, Check, LogOut, Database, HardDrive } from 'lucide-react';
+import Login from './Login';
 import './App.css';
 
 const DEFAULT_PRODUCTS = [
@@ -10,18 +11,44 @@ const DEFAULT_PRODUCTS = [
 ];
 
 function App() {
+  const [isAuthenticated, setIsAuthenticated] = useState(false);
+  const [userProfile, setUserProfile] = useState(null);
   const [stores, setStores] = useState([]);
   const [loading, setLoading] = useState(false);
   const [creating, setCreating] = useState(false);
   const [error, setError] = useState(null);
-  
+
   // Modal State
   const [isModalOpen, setIsModalOpen] = useState(false);
-  
+
   // Form State
   const [adminPassword, setAdminPassword] = useState("");
+  const [storageSize, setStorageSize] = useState(2);
   const [products, setProducts] = useState(DEFAULT_PRODUCTS);
   const [copied, setCopied] = useState(false);
+
+  const loadUserProfile = async () => {
+    try {
+      const profile = await getCurrentUser();
+      setUserProfile(profile);
+      setIsAuthenticated(true);
+    } catch (err) {
+      console.error("Failed to load profile", err);
+      setIsAuthenticated(false);
+      localStorage.removeItem('token');
+    }
+  };
+
+  const handleLogin = async () => {
+    await loadUserProfile();
+  };
+
+  const handleLogout = () => {
+    logout();
+    setIsAuthenticated(false);
+    setUserProfile(null);
+    setStores([]);
+  };
 
   const fetchStores = async () => {
     setLoading(true);
@@ -38,10 +65,19 @@ function App() {
   };
 
   useEffect(() => {
-    fetchStores();
-    const interval = setInterval(fetchStores, 10000); // Poll every 10s
-    return () => clearInterval(interval);
+    const token = localStorage.getItem('token');
+    if (token) {
+      loadUserProfile();
+    }
   }, []);
+
+  useEffect(() => {
+    if (isAuthenticated) {
+      fetchStores();
+      const interval = setInterval(fetchStores, 10000); // Poll every 10s
+      return () => clearInterval(interval);
+    }
+  }, [isAuthenticated]);
 
   const generatePassword = () => {
     const chars = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789!@#$%^&*";
@@ -55,6 +91,7 @@ function App() {
   const openModal = () => {
     generatePassword();
     setProducts(DEFAULT_PRODUCTS);
+    setStorageSize(2);
     setIsModalOpen(true);
   };
 
@@ -94,15 +131,18 @@ function App() {
       .join('\n');
 
     try {
-      await createStore({ 
+      await createStore({
         sample_products: formattedProducts,
-        admin_password: adminPassword 
+        admin_password: adminPassword,
+        storage_size_gi: storageSize
       });
       await fetchStores();
+      await loadUserProfile(); // Refresh quota
       alert("Store creation started!");
       closeModal();
     } catch (err) {
-      setError("Failed to create store.");
+      const msg = err.response?.data?.error || "Failed to create store. Quota exceeded?";
+      setError(msg);
       console.error(err);
     } finally {
       setCreating(false);
@@ -114,17 +154,43 @@ function App() {
     try {
       await deleteStore(id);
       setStores(stores.filter(s => s.id !== id));
+      await loadUserProfile(); // Refresh quota
     } catch (err) {
-      setError("Failed to delete store.");
+      const msg = err.response?.data?.error || "Failed to delete store.";
+      setError(msg);
       console.error(err);
     }
   };
 
+  if (!isAuthenticated) {
+    return <Login onLogin={handleLogin} />;
+  }
+
   return (
     <div className="container">
       <header className="header">
-        <h1><ShoppingBag className="icon" /> K8s WooCommerce Factory</h1>
-        <p>Manage your Kubernetes-based stores</p>
+        <div className="header-left">
+          <h1><ShoppingBag className="icon" /> K8s WooCommerce Factory</h1>
+          <p>Manage your Kubernetes-based stores</p>
+        </div>
+        {userProfile && (
+          <div className="header-right">
+            <div className="user-info">
+              <div className="quota-badge">
+                <Database size={16} />
+                <span>{userProfile.current_stores || 0} / {userProfile.max_stores} Stores</span>
+              </div>
+              <div className="quota-badge">
+                <HardDrive size={16} />
+                <span>{userProfile.current_storage || 0} / {userProfile.max_storage} Gi</span>
+              </div>
+              <div className="user-name">{userProfile.username}</div>
+              <button onClick={handleLogout} className="btn-icon" title="Logout">
+                <LogOut size={18} />
+              </button>
+            </div>
+          </div>
+        )}
       </header>
       
       {error && <div className="error-banner">{error}</div>}
@@ -152,23 +218,36 @@ function App() {
                   <h3>Store: {store.id}</h3>
                   <span className={`badge ${store.status}`}>{store.status}</span>
                 </div>
-                
+
                 <div className="card-body">
                    <div className="info-row">
-                      <ExternalLink size={16} /> 
+                      <ExternalLink size={16} />
                       <a href={store.url} target="_blank" rel="noreferrer">{store.url}</a>
                    </div>
                    <div className="info-row">
-                      <Lock size={16} /> 
+                      <Lock size={16} />
                       <a href={`${store.url}/wp-admin`} target="_blank" rel="noreferrer">Admin Panel</a>
                    </div>
-                   
+
+                   {store.owner && (
+                     <div className="info-row">
+                       <span className="label">Owner:</span> {store.owner}
+                     </div>
+                   )}
+
+                   {store.storage_gi && (
+                     <div className="info-row">
+                       <HardDrive size={16} />
+                       <span>{store.storage_gi} Gi Storage</span>
+                     </div>
+                   )}
+
                    <div className="credentials">
                      <h4>Credentials</h4>
                      <p>User: <code>admin</code></p>
                      <p>Pass: <code>{store.admin_password || "Check Secret"}</code></p>
                    </div>
-                   
+
                    <div className="notes">
                      <p><small>Note: Add <code>127.0.0.1 store-{store.id}.local</code> to /etc/hosts</small></p>
                    </div>
@@ -198,8 +277,8 @@ function App() {
                 <div className="form-group">
                   <label>Admin Password</label>
                   <div className="password-input-group">
-                    <input 
-                      type="text" 
+                    <input
+                      type="text"
                       value={adminPassword}
                       onChange={(e) => setAdminPassword(e.target.value)}
                       className="input-text"
@@ -212,6 +291,21 @@ function App() {
                     </button>
                   </div>
                   <small className="help-text">This will be the password for the 'admin' user.</small>
+                </div>
+
+                {/* Storage Size Section */}
+                <div className="form-group">
+                  <label>WordPress Storage Size (Gi)</label>
+                  <input
+                    type="number"
+                    min="1"
+                    max="20"
+                    value={storageSize}
+                    onChange={(e) => setStorageSize(parseInt(e.target.value))}
+                    className="input-text"
+                    required
+                  />
+                  <small className="help-text">Note: MySQL requires additional 2Gi. Total: {storageSize + 2}Gi</small>
                 </div>
 
                 {/* Products Section */}
