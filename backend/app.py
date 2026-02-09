@@ -28,7 +28,13 @@ def create_store():
         data = request.get_json() or {}
         sample_products = data.get('sample_products', "Sample Product 1|10.00|This is a sample product\nSample Product 2|20.00|Another sample product")
         store_url_suffix = data.get('store_url', None)
-        result = store_manager.create_store(sample_products=sample_products, store_url_suffix=store_url_suffix)
+        admin_password = data.get('admin_password', None)
+        
+        result = store_manager.create_store(
+            sample_products=sample_products, 
+            store_url_suffix=store_url_suffix,
+            admin_password=admin_password
+        )
         if "error" in result:
             return jsonify(result), 500
         return jsonify(result), 201

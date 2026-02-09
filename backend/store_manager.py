@@ -13,7 +13,7 @@ class StoreManager:
         """Generate unique store ID"""
         return secrets.token_hex(4)
     
-    def create_store(self, sample_products=None, store_url_suffix=None):
+    def create_store(self, sample_products=None, store_url_suffix=None, admin_password=None):
         """Create a new store"""
         store_id = self.generate_store_id()
         namespace = f"store-{store_id}"
@@ -21,7 +21,10 @@ class StoreManager:
             store_url = f"store-{store_id}.{store_url_suffix}"
         else:
             store_url = f"store-{store_id}.local"
-        db_password = secrets.token_urlsafe(16)
+        
+        # Use provided password or generate one
+        db_password = admin_password if admin_password else secrets.token_urlsafe(16)
+        
         if sample_products is None:
             sample_products = "Sample Product 1|10.00|This is a sample product\nSample Product 2|20.00|Another sample product"
         
