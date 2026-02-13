@@ -28,6 +28,8 @@ spec:
         env:
         - name: VITE_API_URL
           value: {{ .Values.frontend.env.apiUrl | quote }}
+        - name: VITE_STORE_URL_SUFFIX
+          value: {{ .Values.storeUrlSuffix | quote }}
         livenessProbe:
           httpGet:
             path: /
