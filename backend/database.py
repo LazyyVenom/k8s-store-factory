@@ -55,14 +55,16 @@ def get_user_usage(user_id):
         'total_storage': result.total_storage or 0
     }
 
-def register_store(store_id, user_id, storage_size_gi, name="", status="initialized"):
+def register_store(store_id, user_id, storage_size_gi, name="", status="initialized", store_url=None, admin_password=None):
     """Register a new store in the database"""
     store = Store(
         id=store_id,
         user_id=user_id,
         storage_size_gi=storage_size_gi,
         name=name,
-        status=status
+        status=status,
+        store_url=store_url,
+        admin_password=admin_password
     )
     db.session.add(store)
     db.session.commit()

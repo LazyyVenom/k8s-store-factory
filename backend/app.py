@@ -80,13 +80,14 @@ def create_store():
         current_user_id = int(get_jwt_identity())
         data = request.get_json() or {}
         sample_products = data.get('sample_products', "Sample Product 1|299|This is a sample product\nSample Product 2|599|Another sample product")
-        store_url_suffix = data.get('store_url', os.environ.get('STORE_URL_SUFFIX', None))
+        # Always use environment variable for store URL suffix
+        store_url_suffix = os.environ.get('STORE_URL_SUFFIX', None)
         admin_password = data.get('admin_password', None)
         storage_size = int(data.get('storage_size_gi', 2))
-        
+
         result = store_manager.create_store(
             user_id=current_user_id,
-            sample_products=sample_products, 
+            sample_products=sample_products,
             store_url_suffix=store_url_suffix,
             admin_password=admin_password,
             storage_size_gi=storage_size

@@ -41,6 +41,8 @@ class Store(db.Model):
     name = db.Column(db.String)
     storage_size_gi = db.Column(db.Integer, default=2)
     status = db.Column(db.String, default='initialized')  # initialized, provisioning, ready, failed, deleted
+    store_url = db.Column(db.String)
+    admin_password = db.Column(db.String)
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
 
     # Relationship
@@ -53,5 +55,7 @@ class Store(db.Model):
             'name': self.name,
             'storage_size_gi': self.storage_size_gi,
             'status': self.status,
+            'store_url': self.store_url,
+            'admin_password': self.admin_password,
             'created_at': self.created_at.isoformat() if self.created_at else None
         }

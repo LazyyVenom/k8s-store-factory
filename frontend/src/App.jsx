@@ -226,8 +226,14 @@ function App() {
                    </div>
                    <div className="info-row">
                       <Lock size={16} />
-                      <a href={`${store.url}/wp-admin`} target="_blank" rel="noreferrer">Admin Panel</a>
+                      <a href={store.admin_url || `${store.url}/wp-admin`} target="_blank" rel="noreferrer">Admin Panel</a>
                    </div>
+
+                   {store.namespace && (
+                     <div className="info-row">
+                       <span className="label">Namespace:</span> <code>{store.namespace}</code>
+                     </div>
+                   )}
 
                    {store.owner && (
                      <div className="info-row">
@@ -242,9 +248,15 @@ function App() {
                      </div>
                    )}
 
+                   {store.created_at && (
+                     <div className="info-row">
+                       <span className="label">Created:</span> {new Date(store.created_at).toLocaleString()}
+                     </div>
+                   )}
+
                    <div className="credentials">
                      <h4>Credentials</h4>
-                     <p>User: <code>admin</code></p>
+                     <p>User: <code>{store.admin_user || 'admin'}</code></p>
                      <p>Pass: <code>{store.admin_password || "Check Secret"}</code></p>
                    </div>
 

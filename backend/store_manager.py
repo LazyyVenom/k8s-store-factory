@@ -1,5 +1,6 @@
 import secrets
 import time
+import os
 from k8s_client import K8sClient
 from templates.mysql import get_mysql_secret, get_mysql_service, get_mysql_statefulset
 from templates.wordpress import get_wordpress_config, get_wordpress_pvc, get_wp_setup_script, get_wordpress_deployment, get_wordpress_service
@@ -50,7 +51,14 @@ class StoreManager:
             sample_products = "Sample Product 1|299|This is a sample product\nSample Product 2|599|Another sample product"
 
         # 3. Register in DB with "initialized" status
-        database.register_store(store_id, user_id, total_request, status="initialized")
+        database.register_store(
+            store_id,
+            user_id,
+            total_request,
+            status="initialized",
+            store_url=store_url,
+            admin_password=db_password
+        )
 
         print(f"\n=== Creating store: {store_id} ===")
         print(f"📝 Status: initialized")
@@ -181,10 +189,21 @@ class StoreManager:
             else:
                 status = self.k8s.get_namespace_status(ns)
 
+            # Build store URL - use stored URL if available, otherwise fallback
+            store_url = None
+            if store_id in db_stores and db_stores[store_id].get('store_url'):
+                store_url = db_stores[store_id]['store_url']
+            else:
+                # Fallback to environment variable or .local
+                suffix = os.environ.get('STORE_URL_SUFFIX', 'local')
+                store_url = f"store-{store_id}.{suffix}"
+
             store_data = {
                 "id": store_id,
                 "namespace": ns,
-                "url": f"http://store-{store_id}.local",
+                "url": f"http://{store_url}",
+                "admin_url": f"http://{store_url}/wp-admin",
+                "admin_user": "admin",
                 "status": status,
             }
 
@@ -192,6 +211,8 @@ class StoreManager:
             if store_id in db_stores:
                 store_data['owner'] = db_stores[store_id]['username']
                 store_data['storage_gi'] = db_stores[store_id]['storage_size_gi']
+                store_data['admin_password'] = db_stores[store_id].get('admin_password')
+                store_data['created_at'] = db_stores[store_id].get('created_at')
 
             stores.append(store_data)
 
