@@ -17,6 +17,7 @@ spec:
         {{- include "wordpress-chart.selectorLabels" . | nindent 8 }}
         app.kubernetes.io/component: backend
     spec:
+      serviceAccountName: {{ include "wordpress-chart.fullname" . }}-backend
       containers:
       - name: backend
         image: "{{ .Values.backend.image.repository }}:{{ .Values.backend.image.tag }}"
@@ -35,6 +36,8 @@ spec:
               key: jwt-secret-key
         - name: DATABASE_URL
           value: {{ .Values.backend.env.databaseUrl | quote }}
+        - name: STORE_URL_SUFFIX
+          value: {{ .Values.storeUrlSuffix | quote }}
         livenessProbe:
           httpGet:
             path: /health

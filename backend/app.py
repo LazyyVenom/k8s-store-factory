@@ -1,6 +1,7 @@
 from flask import Flask, jsonify, request
 from flask_cors import CORS
 from store_manager import StoreManager
+import os
 
 import database
 from models import db, bcrypt, User
@@ -79,7 +80,7 @@ def create_store():
         current_user_id = int(get_jwt_identity())
         data = request.get_json() or {}
         sample_products = data.get('sample_products', "Sample Product 1|299|This is a sample product\nSample Product 2|599|Another sample product")
-        store_url_suffix = data.get('store_url', None)
+        store_url_suffix = data.get('store_url', os.environ.get('STORE_URL_SUFFIX', None))
         admin_password = data.get('admin_password', None)
         storage_size = int(data.get('storage_size_gi', 2))
         

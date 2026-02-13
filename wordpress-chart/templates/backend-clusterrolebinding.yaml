@@ -1,0 +1,15 @@
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRoleBinding
+metadata:
+  name: {{ include "wordpress-chart.fullname" . }}-backend
+  labels:
+    {{- include "wordpress-chart.labels" . | nindent 4 }}
+    app.kubernetes.io/component: backend
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: ClusterRole
+  name: {{ include "wordpress-chart.fullname" . }}-backend
+subjects:
+- kind: ServiceAccount
+  name: {{ include "wordpress-chart.fullname" . }}-backend
+  namespace: {{ .Release.Namespace }}
