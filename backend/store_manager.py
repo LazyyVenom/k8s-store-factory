@@ -29,8 +29,8 @@ class StoreManager:
         if current_stores >= user['max_stores']:
             return {"error": f"Store limit reached ({user['max_stores']} stores)."}
 
-        # Assuming MySQL takes 2Gi fixed + requested Wordpress storage
-        total_request = storage_size_gi + 2
+        # Assuming MySQL takes 1Gi fixed + requested Wordpress storage
+        total_request = storage_size_gi + 1
 
         if (current_storage + total_request) > user['max_storage_gi']:
             return {"error": f"Storage quota exceeded. Available: {user['max_storage_gi'] - current_storage}Gi, Requested: {total_request}Gi"}
@@ -47,7 +47,7 @@ class StoreManager:
         db_password = admin_password if admin_password else secrets.token_urlsafe(16)
 
         if sample_products is None:
-            sample_products = "Sample Product 1|10.00|This is a sample product\nSample Product 2|20.00|Another sample product"
+            sample_products = "Sample Product 1|299|This is a sample product\nSample Product 2|599|Another sample product"
 
         # 3. Register in DB with "initialized" status
         database.register_store(store_id, user_id, total_request, status="initialized")
@@ -123,9 +123,8 @@ class StoreManager:
                 database.update_store_status(store_id, "failed")
                 return {"error": "Failed to create Ingress"}
 
-            # 5. Update status to "ready" when complete
-            database.update_store_status(store_id, "ready")
-            print(f"✅ Store created successfully! Status: ready\n")
+            # 5. Keep status as "provisioning" - will update to "ready" when pods are actually running
+            print(f"✅ Store resources created successfully! Status: provisioning\n")
 
             return {
                 "id": store_id,
@@ -134,7 +133,7 @@ class StoreManager:
                 "admin_url": f"http://{store_url}/wp-admin",
                 "admin_user": "admin",
                 "admin_password": db_password,
-                "status": "ready",
+                "status": "provisioning",
                 "created_at": time.time(),
                 "owner": user['username']
             }
@@ -165,7 +164,20 @@ class StoreManager:
 
             # Get status from database if available, otherwise from k8s
             if store_id in db_stores:
-                status = db_stores[store_id].get('status', 'unknown')
+                db_status = db_stores[store_id].get('status', 'unknown')
+
+                # For stores in provisioning state, check actual k8s status
+                if db_status == 'provisioning':
+                    k8s_status = self.k8s.get_namespace_status(ns)
+
+                    # Update database if pods are now ready or failed
+                    if k8s_status in ['ready', 'failed']:
+                        database.update_store_status(store_id, k8s_status)
+                        status = k8s_status
+                    else:
+                        status = db_status
+                else:
+                    status = db_status
             else:
                 status = self.k8s.get_namespace_status(ns)
 

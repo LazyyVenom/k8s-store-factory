@@ -59,21 +59,51 @@ class K8sClient:
             return False
     
     def get_namespace_status(self, name):
-        """Get status of pods in namespace"""
+        """Get status of pods in namespace - specifically checks WordPress pod"""
         try:
             pods = self.core_v1.list_namespaced_pod(name)
-            
+
             total = len(pods.items)
-            ready = sum(1 for pod in pods.items 
-                       if pod.status.phase == "Running" and
-                       all(c.ready for c in pod.status.container_statuses or []))
-            
             if total == 0:
                 return "provisioning"
-            elif ready == total:
-                return "ready"
-            elif any(pod.status.phase == "Failed" for pod in pods.items):
+
+            wordpress_ready = False
+            has_failed_pods = False
+
+            for pod in pods.items:
+                # Check if pod is in Failed state
+                if pod.status.phase == "Failed":
+                    has_failed_pods = True
+                    continue
+
+                # Check specifically for WordPress pod
+                is_wordpress = pod.metadata.name.startswith("wordpress-")
+
+                if is_wordpress:
+                    # Check if all init containers have completed
+                    init_containers_ready = True
+                    if pod.status.init_container_statuses:
+                        for init_container in pod.status.init_container_statuses:
+                            if not init_container.state.terminated or init_container.state.terminated.exit_code != 0:
+                                init_containers_ready = False
+                                break
+
+                    # Check if all main containers are ready
+                    main_containers_ready = False
+                    if pod.status.container_statuses:
+                        main_containers_ready = all(c.ready for c in pod.status.container_statuses)
+
+                    # WordPress pod is ready only if:
+                    # 1. Phase is Running
+                    # 2. All init containers completed successfully
+                    # 3. All main containers are ready
+                    if pod.status.phase == "Running" and init_containers_ready and main_containers_ready:
+                        wordpress_ready = True
+
+            if has_failed_pods:
                 return "failed"
+            elif wordpress_ready:
+                return "ready"
             else:
                 return "provisioning"
         except ApiException:

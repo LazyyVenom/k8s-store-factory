@@ -78,7 +78,7 @@ def create_store():
     try:
         current_user_id = int(get_jwt_identity())
         data = request.get_json() or {}
-        sample_products = data.get('sample_products', "Sample Product 1|10.00|This is a sample product\nSample Product 2|20.00|Another sample product")
+        sample_products = data.get('sample_products', "Sample Product 1|299|This is a sample product\nSample Product 2|599|Another sample product")
         store_url_suffix = data.get('store_url', None)
         admin_password = data.get('admin_password', None)
         storage_size = int(data.get('storage_size_gi', 2))
@@ -111,4 +111,4 @@ def delete_store(store_id):
         return jsonify({"error": str(e)}), 500
 
 if __name__ == '__main__':
-    app.run(port=8000, debug=True)
+    app.run(host='0.0.0.0', port=8000, debug=True)

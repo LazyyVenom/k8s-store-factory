@@ -5,9 +5,9 @@ import Login from './Login';
 import './App.css';
 
 const DEFAULT_PRODUCTS = [
-  { name: "Classic T-Shirt", price: "20.00", description: "A classic cotton t-shirt" },
-  { name: "Denim Jeans", price: "45.00", description: "Blue denim jeans" },
-  { name: "Sneakers", price: "60.00", description: "Comfortable running shoes" }
+  { name: "Classic T-Shirt", price: "499", description: "A classic cotton t-shirt" },
+  { name: "Denim Jeans", price: "1299", description: "Blue denim jeans" },
+  { name: "Sneakers", price: "2499", description: "Comfortable running shoes" }
 ];
 
 function App() {
@@ -248,9 +248,6 @@ function App() {
                      <p>Pass: <code>{store.admin_password || "Check Secret"}</code></p>
                    </div>
 
-                   <div className="notes">
-                     <p><small>Note: Add <code>127.0.0.1 store-{store.id}.local</code> to /etc/hosts</small></p>
-                   </div>
                 </div>
 
                 <div className="card-footer">
@@ -305,7 +302,7 @@ function App() {
                     className="input-text"
                     required
                   />
-                  <small className="help-text">Note: MySQL requires additional 2Gi. Total: {storageSize + 2}Gi</small>
+                  <small className="help-text">Note: MySQL requires additional 1Gi. Total: {storageSize + 1}Gi</small>
                 </div>
 
                 {/* Products Section */}
@@ -322,9 +319,9 @@ function App() {
                           className="input-text"
                           required
                         />
-                        <input 
-                          type="number" 
-                          placeholder="Price"
+                        <input
+                          type="number"
+                          placeholder="Price (₹)"
                           value={product.price}
                           onChange={(e) => handleProductChange(index, "price", e.target.value)}
                           className="input-text price-input"
