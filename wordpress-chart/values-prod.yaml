@@ -31,14 +31,14 @@ backend:
       nginx.ingress.kubernetes.io/ssl-redirect: "true"
       nginx.ingress.kubernetes.io/proxy-body-size: "50m"
     hosts:
-      - host: api.bakkathon.com
+      - host: k8sapi.bakkathon.com
         paths:
           - path: /
             pathType: Prefix
     tls:
       - secretName: backend-tls
         hosts:
-          - api.bakkathon.com
+          - k8sapi.bakkathon.com
 
 frontend:
   replicaCount: 1
@@ -54,7 +54,7 @@ frontend:
     targetPort: 80
   
   env:
-    apiUrl: https://api.bakkathon.com
+    apiUrl: https://k8sapi.bakkathon.com
   
   resources:
     limits:
@@ -71,14 +71,14 @@ frontend:
       cert-manager.io/cluster-issuer: letsencrypt-prod
       nginx.ingress.kubernetes.io/ssl-redirect: "true"
     hosts:
-      - host: bakkathon.com
+      - host: k8s.bakkathon.com
         paths:
           - path: /
             pathType: Prefix
     tls:
       - secretName: frontend-tls
         hosts:
-          - bakkathon.com
+          - k8s.bakkathon.com
 
 secrets:
   jwtSecretKey: THIS_IS_A_PRODUCTION_SECRET_KEY_FOR_NOW
