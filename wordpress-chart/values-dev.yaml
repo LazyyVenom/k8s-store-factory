@@ -1,0 +1,80 @@
+# Development environment values
+# Override default values for development
+
+backend:
+  replicaCount: 1
+  
+  image:
+    repository: store-factory-backend
+    tag: dev
+    pullPolicy: Always
+  
+  service:
+    type: NodePort
+    port: 5000
+    targetPort: 5000
+  
+  env:
+    flaskEnv: development
+    databaseUrl: sqlite:///store_factory.db
+  
+  resources:
+    limits:
+      cpu: 500m
+      memory: 512Mi
+    requests:
+      cpu: 100m
+      memory: 128Mi
+
+  ingress:
+    enabled: true
+    className: nginx
+    annotations:
+      nginx.ingress.kubernetes.io/proxy-body-size: "50m"
+    hosts:
+      - host: api.storefactory.local
+        paths:
+          - path: /
+            pathType: Prefix
+    tls: []
+
+frontend:
+  replicaCount: 1
+  
+  image:
+    repository: store-factory-frontend
+    tag: dev
+    pullPolicy: Always
+  
+  service:
+    type: NodePort
+    port: 80
+    targetPort: 80
+  
+  env:
+    apiUrl: http://api.storefactory.local
+  
+  resources:
+    limits:
+      cpu: 200m
+      memory: 256Mi
+    requests:
+      cpu: 50m
+      memory: 64Mi
+
+  ingress:
+    enabled: true
+    className: nginx
+    annotations: {}
+    hosts:
+      - host: storefactory.local
+        paths:
+          - path: /
+            pathType: Prefix
+    tls: []
+
+secrets:
+  jwtSecretKey: dev-secret-key-not-for-production
+
+# Store URL suffix for individual stores created in development
+storeUrlSuffix: storefactory.local

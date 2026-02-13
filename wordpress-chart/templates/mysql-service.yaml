@@ -1,0 +1,21 @@
+{{- if .Values.mysql.enabled }}
+apiVersion: v1
+kind: Service
+metadata:
+  name: mysql
+  namespace: {{ .Values.namespace }}
+  labels:
+    app: mysql
+    chart: {{ .Chart.Name }}-{{ .Chart.Version }}
+    release: {{ .Release.Name }}
+spec:
+  selector:
+    app: mysql
+    release: {{ .Release.Name }}
+  ports:
+    - port: {{ .Values.mysql.service.port }}
+      targetPort: {{ .Values.mysql.service.port }}
+      protocol: TCP
+      name: mysql
+  clusterIP: None
+{{- end }}

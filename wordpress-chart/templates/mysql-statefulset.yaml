@@ -1,0 +1,73 @@
+{{- if .Values.mysql.enabled }}
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: mysql
+  namespace: {{ .Values.namespace }}
+  labels:
+    app: mysql
+    chart: {{ .Chart.Name }}-{{ .Chart.Version }}
+    release: {{ .Release.Name }}
+spec:
+  serviceName: mysql
+  replicas: 1
+  selector:
+    matchLabels:
+      app: mysql
+      release: {{ .Release.Name }}
+  template:
+    metadata:
+      labels:
+        app: mysql
+        release: {{ .Release.Name }}
+    spec:
+      containers:
+        - name: mysql
+          image: {{ .Values.mysql.image.repository }}:{{ .Values.mysql.image.tag }}
+          imagePullPolicy: {{ .Values.mysql.image.pullPolicy }}
+          ports:
+            - containerPort: {{ .Values.mysql.service.port }}
+              name: mysql
+          env:
+            - name: MYSQL_ROOT_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: mysql-secret
+                  key: mysql-root-password
+            - name: MYSQL_DATABASE
+              valueFrom:
+                secretKeyRef:
+                  name: mysql-secret
+                  key: mysql-database
+            - name: MYSQL_USER
+              valueFrom:
+                secretKeyRef:
+                  name: mysql-secret
+                  key: mysql-user
+            - name: MYSQL_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: mysql-secret
+                  key: mysql-password
+          volumeMounts:
+            - name: mysql-storage
+              mountPath: /var/lib/mysql
+          {{- with .Values.mysql.resources }}
+          resources:
+            {{- toYaml . | nindent 12 }}
+          {{- end }}
+  {{- if .Values.mysql.persistence.enabled }}
+  volumeClaimTemplates:
+    - metadata:
+        name: mysql-storage
+      spec:
+        accessModes:
+          - {{ .Values.mysql.persistence.accessMode }}
+        {{- if .Values.mysql.persistence.storageClass }}
+        storageClassName: {{ .Values.mysql.persistence.storageClass | quote }}
+        {{- end }}
+        resources:
+          requests:
+            storage: {{ .Values.mysql.persistence.size }}
+  {{- end }}
+{{- end }}

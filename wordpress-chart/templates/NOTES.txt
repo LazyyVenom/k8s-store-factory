@@ -1,0 +1,92 @@
+Thank you for installing {{ .Chart.Name }}!
+
+Your Store Factory has been deployed successfully.
+
+=============================================================================
+CONTROL PLANE URLS
+=============================================================================
+
+{{- if .Values.frontend.ingress.enabled }}
+Frontend:  http{{ if .Values.frontend.ingress.tls }}s{{ end }}://{{ (index .Values.frontend.ingress.hosts 0).host }}
+{{- else }}
+Frontend:  Service {{ include "wordpress-chart.fullname" . }}-frontend ({{ .Values.frontend.service.type }})
+{{- end }}
+
+{{- if .Values.backend.ingress.enabled }}
+Backend:   http{{ if .Values.backend.ingress.tls }}s{{ end }}://{{ (index .Values.backend.ingress.hosts 0).host }}
+{{- else }}
+Backend:   Service {{ include "wordpress-chart.fullname" . }}-backend ({{ .Values.backend.service.type }})
+{{- end }}
+
+=============================================================================
+INDIVIDUAL STORE URLS
+=============================================================================
+
+Each WordPress store created through the backend will be accessible at:
+  http{{ if .Values.backend.ingress.tls }}s{{ end }}://store-{store_id}.{{ .Values.storeUrlSuffix }}
+
+Examples:
+  - http{{ if .Values.backend.ingress.tls }}s{{ end }}://store-abc123.{{ .Values.storeUrlSuffix }}
+  - http{{ if .Values.backend.ingress.tls }}s{{ end }}://store-xyz789.{{ .Values.storeUrlSuffix }}
+
+Each store includes:
+  - Store front: http{{ if .Values.backend.ingress.tls }}s{{ end }}://store-{store_id}.{{ .Values.storeUrlSuffix }}
+  - Admin panel: http{{ if .Values.backend.ingress.tls }}s{{ end }}://store-{store_id}.{{ .Values.storeUrlSuffix }}/wp-admin
+
+=============================================================================
+DNS CONFIGURATION REQUIRED
+=============================================================================
+
+{{- if .Values.backend.ingress.enabled }}
+
+For production, configure these DNS records:
+
+1. Control Plane:
+{{- range .Values.frontend.ingress.hosts }}
+   {{ .host }} → Your Ingress LoadBalancer IP
+{{- end }}
+{{- range .Values.backend.ingress.hosts }}
+   {{ .host }} → Your Ingress LoadBalancer IP
+{{- end }}
+
+2. Individual Stores (Wildcard):
+   *.{{ .Values.storeUrlSuffix }} → Your Ingress LoadBalancer IP
+
+For local development, add to /etc/hosts:
+{{- range .Values.frontend.ingress.hosts }}
+   127.0.0.1 {{ .host }}
+{{- end }}
+{{- range .Values.backend.ingress.hosts }}
+   127.0.0.1 {{ .host }}
+{{- end }}
+   127.0.0.1 store-{store_id}.{{ .Values.storeUrlSuffix }}
+
+{{- end }}
+
+=============================================================================
+GET STARTED
+=============================================================================
+
+1. Access the frontend at the URL above
+2. Login with your credentials
+3. Create a new WordPress store
+4. Access your store at: http{{ if .Values.backend.ingress.tls }}s{{ end }}://store-{store_id}.{{ .Values.storeUrlSuffix }}
+
+=============================================================================
+MONITORING
+=============================================================================
+
+Check the status of your deployment:
+  kubectl get pods -n {{ .Release.Namespace }}
+  kubectl get svc -n {{ .Release.Namespace }}
+  kubectl get ingress -n {{ .Release.Namespace }}
+
+View backend logs:
+  kubectl logs -n {{ .Release.Namespace }} -l app.kubernetes.io/component=backend
+
+View frontend logs:
+  kubectl logs -n {{ .Release.Namespace }} -l app.kubernetes.io/component=frontend
+
+=============================================================================
+
+For more information, see the chart README.

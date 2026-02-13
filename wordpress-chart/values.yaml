@@ -1,0 +1,99 @@
+# Default values for wordpress-chart
+# This is a YAML-formatted file.
+# Declare variables to be passed into your templates.
+
+nameOverride: ""
+fullnameOverride: ""
+
+# Backend configuration
+backend:
+  replicaCount: 1
+  
+  image:
+    repository: store-factory-backend
+    tag: latest
+    pullPolicy: IfNotPresent
+  
+  service:
+    type: ClusterIP
+    port: 5000
+    targetPort: 5000
+  
+  env:
+    flaskEnv: development
+    databaseUrl: sqlite:///store_factory.db
+  
+  resources:
+    limits:
+      cpu: 500m
+      memory: 512Mi
+    requests:
+      cpu: 250m
+      memory: 256Mi
+
+  ingress:
+    enabled: false
+    className: nginx
+    annotations: {}
+      # cert-manager.io/cluster-issuer: letsencrypt-prod
+      # nginx.ingress.kubernetes.io/ssl-redirect: "true"
+    hosts:
+      - host: api.storefactory.local
+        paths:
+          - path: /
+            pathType: Prefix
+    tls: []
+      # - secretName: backend-tls
+      #   hosts:
+      #     - api.storefactory.local
+
+# Frontend configuration
+frontend:
+  replicaCount: 1
+  
+  image:
+    repository: store-factory-frontend
+    tag: latest
+    pullPolicy: IfNotPresent
+  
+  service:
+    type: ClusterIP
+    port: 80
+    targetPort: 80
+  
+  env:
+    apiUrl: http://localhost:5000
+  
+  resources:
+    limits:
+      cpu: 200m
+      memory: 256Mi
+    requests:
+      cpu: 100m
+      memory: 128Mi
+
+  ingress:
+    enabled: false
+    className: nginx
+    annotations: {}
+      # cert-manager.io/cluster-issuer: letsencrypt-prod
+      # nginx.ingress.kubernetes.io/ssl-redirect: "true"
+    hosts:
+      - host: storefactory.local
+        paths:
+          - path: /
+            pathType: Prefix
+    tls: []
+      # - secretName: frontend-tls
+      #   hosts:
+      #     - storefactory.local
+
+# Secrets
+secrets:
+  jwtSecretKey: super-secret-key-change-this-in-production
+
+# Store URL Configuration
+# Individual WordPress stores created by the backend will use this domain suffix
+# Format: store-{store_id}.{storeUrlSuffix}
+# Example: store-abc123.storefactory.local
+storeUrlSuffix: storefactory.local
