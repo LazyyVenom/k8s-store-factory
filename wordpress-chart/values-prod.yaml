@@ -54,7 +54,7 @@ frontend:
     targetPort: 80
   
   env:
-    apiUrl: https://k8sapi.bakkathon.com
+    apiUrl: https://k8sapi.bakkathon.com/api
   
   resources:
     limits:
