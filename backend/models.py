@@ -40,8 +40,9 @@ class Store(db.Model):
     user_id = db.Column(db.Integer, db.ForeignKey('users.id'), nullable=False)
     name = db.Column(db.String)
     storage_size_gi = db.Column(db.Integer, default=2)
+    status = db.Column(db.String, default='initialized')  # initialized, provisioning, ready, failed, deleted
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
-    
+
     # Relationship
     user = db.relationship('User', back_populates='stores')
 
@@ -51,5 +52,6 @@ class Store(db.Model):
             'user_id': self.user_id,
             'name': self.name,
             'storage_size_gi': self.storage_size_gi,
+            'status': self.status,
             'created_at': self.created_at.isoformat() if self.created_at else None
         }

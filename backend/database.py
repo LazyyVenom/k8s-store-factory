@@ -29,10 +29,10 @@ def init_db(app, use_seed_data=False):
 
 def _create_basic_users():
     """Create basic admin and demo users"""
-    admin = User(username='admin', max_stores=10, max_storage_gi=50)
+    admin = User(username='admin', max_stores=6, max_storage_gi=12)
     admin.set_password('admin123')
 
-    demo = User(username='demo_user', max_stores=2, max_storage_gi=5)
+    demo = User(username='demo_user', max_stores=2, max_storage_gi=4)
     demo.set_password('demo123')
 
     db.session.add_all([admin, demo])
@@ -55,15 +55,26 @@ def get_user_usage(user_id):
         'total_storage': result.total_storage or 0
     }
 
-def register_store(store_id, user_id, storage_size_gi, name=""):
+def register_store(store_id, user_id, storage_size_gi, name="", status="initialized"):
+    """Register a new store in the database"""
     store = Store(
         id=store_id,
         user_id=user_id,
         storage_size_gi=storage_size_gi,
-        name=name
+        name=name,
+        status=status
     )
     db.session.add(store)
     db.session.commit()
+
+def update_store_status(store_id, status):
+    """Update the status of a store"""
+    store = db.session.get(Store, store_id)
+    if store:
+        store.status = status
+        db.session.commit()
+        return True
+    return False
 
 def deregister_store(store_id):
     store = db.session.get(Store, store_id)

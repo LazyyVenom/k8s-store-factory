@@ -456,6 +456,10 @@ body {
   box-shadow: var(--shadow-lg);
 }
 
+.card.initialized {
+  border-left-color: #a0aec0;
+}
+
 .card.provisioning {
   border-left-color: var(--warning);
 }
@@ -466,6 +470,11 @@ body {
 
 .card.failed {
   border-left-color: var(--danger);
+}
+
+.card.deleted {
+  border-left-color: #718096;
+  opacity: 0.7;
 }
 
 .card-header {
@@ -496,6 +505,12 @@ body {
   white-space: nowrap;
 }
 
+.badge.initialized {
+  background-color: #edf2f7;
+  color: #4a5568;
+  border: 1px solid #cbd5e0;
+}
+
 .badge.provisioning {
   background-color: #fef5e7;
   color: #bb6107;
@@ -512,6 +527,12 @@ body {
   background-color: #fee;
   color: #c53030;
   border: 1px solid #fed7d7;
+}
+
+.badge.deleted {
+  background-color: #f7fafc;
+  color: #718096;
+  border: 1px solid #cbd5e0;
 }
 
 .card-body {

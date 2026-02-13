@@ -130,7 +130,7 @@ def get_mysql_statefulset(store_id):
                         access_modes=["ReadWriteOnce"],
                         resources=client.V1ResourceRequirements(
                             requests={
-                                "storage": "2Gi"
+                                "storage": "1Gi"
                             }
                         )
                     )

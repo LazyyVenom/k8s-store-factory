@@ -17,7 +17,7 @@ db.init_app(app)
 bcrypt.init_app(app)
 jwt = JWTManager(app)
 
-database.init_db(app)
+database.init_db(app, use_seed_data=True)
 
 store_manager = StoreManager()
 
