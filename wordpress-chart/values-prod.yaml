@@ -3,7 +3,7 @@ backend:
   
   image:
     repository: store-factory-backend
-    tag: stable
+    tag: latest
     pullPolicy: IfNotPresent
   
   service:
@@ -45,7 +45,7 @@ frontend:
   
   image:
     repository: store-factory-frontend
-    tag: stable
+    tag: latest
     pullPolicy: IfNotPresent
   
   service:
