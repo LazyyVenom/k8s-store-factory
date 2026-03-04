@@ -142,6 +142,10 @@ HTTP_URL="http://${WP_SITE_URL#https://}"
 echo "Running search-replace: $HTTP_URL -> $WP_SITE_URL"
 wp search-replace "$HTTP_URL" "$WP_SITE_URL" --skip-columns=guid --all-tables --allow-root
 
+# 7. Clear WooCommerce CSS/transient cache so assets regenerate with HTTPS URLs
+wp transient delete --all --allow-root
+wp eval 'if (function_exists("wc_delete_product_transients")) { wc_delete_product_transients(); }' --allow-root 2>/dev/null || true
+
 echo "=== SETUP COMPLETE ==="
 """
     return client.V1ConfigMap(
@@ -260,12 +264,11 @@ def get_wordpress_deployment(store_id, db_password, store_url):
                                 client.V1EnvVar(
                                     name="WORDPRESS_CONFIG_EXTRA",
                                     value=(
-                                        "if (isset($_SERVER['HTTP_X_FORWARDED_PROTO']) && "
-                                        "$_SERVER['HTTP_X_FORWARDED_PROTO'] == 'https') {\n"
-                                        "    $_SERVER['HTTPS'] = 'on';\n"
-                                        "}\n"
+                                        "$_SERVER['HTTPS'] = 'on';\n"
+                                        "$_SERVER['SERVER_PORT'] = '443';\n"
                                         f"define('WP_HOME', 'https://{store_url}');\n"
                                         f"define('WP_SITEURL', 'https://{store_url}');\n"
+                                        "define('FORCE_SSL_ADMIN', true);\n"
                                     ),
                                 ),
                             ],
