@@ -8,14 +8,10 @@ def get_ingress(store_id, store_url):
             name="store-ingress",
             namespace=namespace,
             annotations={
-                # Increase max body size for uploads
                 "nginx.ingress.kubernetes.io/proxy-body-size": "50m",
-                # Force HTTPS redirect (though handled by external Nginx)
                 "nginx.ingress.kubernetes.io/ssl-redirect": "true",
-                # Tell Nginx backend is HTTP
                 "nginx.ingress.kubernetes.io/backend-protocol": "HTTP",
-                # Forward HTTPS headers so WordPress knows it's HTTPS
-                "nginx.ingress.kubernetes.io/configuration-snippet": "proxy_set_header X-Forwarded-Proto $scheme;",
+                # REMOVED: configuration-snippet (it's blocked by your admin)
             },
         ),
         spec=client.V1IngressSpec(
@@ -39,6 +35,5 @@ def get_ingress(store_id, store_url):
                     ),
                 )
             ],
-            # No TLS block needed because external Nginx handles SSL
         ),
     )
