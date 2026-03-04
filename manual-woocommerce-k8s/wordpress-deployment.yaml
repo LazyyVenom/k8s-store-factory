@@ -77,6 +77,12 @@ spec:
                 secretKeyRef:
                   name: mysql-secret
                   key: mysql-password
+            - name: WORDPRESS_CONFIG_EXTRA
+              value: |
+                if (isset($_SERVER['HTTP_X_FORWARDED_PROTO']) &&
+                    $_SERVER['HTTP_X_FORWARDED_PROTO'] === 'https') {
+                    $_SERVER['HTTPS'] = 'on';
+                }
           envFrom:
             - configMapRef:
                 name: wordpress-config

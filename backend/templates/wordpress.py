@@ -1,48 +1,41 @@
 from kubernetes import client
 
+
 def get_wordpress_config(store_id, db_password, store_url, sample_products):
     namespace = f"store-{store_id}"
     return client.V1ConfigMap(
-        metadata=client.V1ObjectMeta(
-            name="wordpress-config",
-            namespace=namespace
-        ),
+        metadata=client.V1ObjectMeta(name="wordpress-config", namespace=namespace),
         data={
             "WP_ADMIN_USER": "admin",
             "WP_ADMIN_PASSWORD": db_password,
             "WP_ADMIN_EMAIL": "admin@example.com",
-            # Use manual-k8s values for defaults but allow override if needed? 
+            # Use manual-k8s values for defaults but allow override if needed?
             # Manual has "My WooCommerce Store"
             "WP_SITE_TITLE": "My WooCommerce Store",
-            "WP_SITE_URL": f"http://{store_url}", # Parameterized as requested
-
+            "WP_SITE_URL": f"http://{store_url}",  # Parameterized as requested
             "WC_STORE_NAME": "My Awesome Store",
             "WC_STORE_ADDRESS": "123 MG Road",
             "WC_STORE_CITY": "Mumbai",
             "WC_STORE_POSTCODE": "400001",
             "WC_STORE_COUNTRY": "IN",
             "WC_STORE_CURRENCY": "INR",
-            
-            "SAMPLE_PRODUCTS": sample_products
-        }
+            "SAMPLE_PRODUCTS": sample_products,
+        },
     )
+
 
 def get_wordpress_pvc(store_id, storage_size_gi=2):
     namespace = f"store-{store_id}"
     return client.V1PersistentVolumeClaim(
-        metadata=client.V1ObjectMeta(
-            name="wordpress-pvc",
-            namespace=namespace
-        ),
+        metadata=client.V1ObjectMeta(name="wordpress-pvc", namespace=namespace),
         spec=client.V1PersistentVolumeClaimSpec(
             access_modes=["ReadWriteOnce"],
             resources=client.V1ResourceRequirements(
-                requests={
-                    "storage": f"{storage_size_gi}Gi"
-                }
-            )
-        )
+                requests={"storage": f"{storage_size_gi}Gi"}
+            ),
+        ),
     )
+
 
 def get_wp_setup_script(store_id, db_password, store_url, sample_products):
     namespace = f"store-{store_id}"
@@ -147,38 +140,22 @@ done <<< "$SAMPLE_PRODUCTS"
 echo "=== SETUP COMPLETE ==="
 """
     return client.V1ConfigMap(
-        metadata=client.V1ObjectMeta(
-            name="wp-setup-script",
-            namespace=namespace
-        ),
-        data={
-            "wp-setup.sh": script_content
-        }
+        metadata=client.V1ObjectMeta(name="wp-setup-script", namespace=namespace),
+        data={"wp-setup.sh": script_content},
     )
+
 
 def get_wordpress_deployment(store_id, db_password, store_url):
     namespace = f"store-{store_id}"
     return client.V1Deployment(
         metadata=client.V1ObjectMeta(
-            name="wordpress",
-            namespace=namespace,
-            labels={
-                "app": "wordpress"
-            }
+            name="wordpress", namespace=namespace, labels={"app": "wordpress"}
         ),
         spec=client.V1DeploymentSpec(
             replicas=1,
-            selector=client.V1LabelSelector(
-                match_labels={
-                    "app": "wordpress"
-                }
-            ),
+            selector=client.V1LabelSelector(match_labels={"app": "wordpress"}),
             template=client.V1PodTemplateSpec(
-                metadata=client.V1ObjectMeta(
-                    labels={
-                        "app": "wordpress"
-                    }
-                ),
+                metadata=client.V1ObjectMeta(labels={"app": "wordpress"}),
                 spec=client.V1PodSpec(
                     init_containers=[
                         client.V1Container(
@@ -188,11 +165,11 @@ def get_wordpress_deployment(store_id, db_password, store_url):
                                 "/bin/bash",
                                 "-c",
                                 "mkdir -p /tmp/conf.d\n"
-                                "echo \"memory_limit = 512M\" > /tmp/conf.d/custom.ini\n"
+                                'echo "memory_limit = 512M" > /tmp/conf.d/custom.ini\n'
                                 "export PHP_INI_SCAN_DIR=:$PHP_INI_SCAN_DIR:/tmp/conf.d\n\n"
                                 "# --- FIX: Filter Logs ---\n"
                                 "# We redirect stderr to stdout (2>&1) and filter out the noisy warnings\n"
-                                "/scripts/wp-setup.sh 2>&1 | grep -v \"already loaded\""
+                                '/scripts/wp-setup.sh 2>&1 | grep -v "already loaded"',
                             ],
                             env_from=[
                                 client.V1EnvFromSource(
@@ -203,47 +180,41 @@ def get_wordpress_deployment(store_id, db_password, store_url):
                             ],
                             env=[
                                 client.V1EnvVar(
-                                    name="WORDPRESS_DB_HOST",
-                                    value="mysql:3306"
+                                    name="WORDPRESS_DB_HOST", value="mysql:3306"
                                 ),
                                 client.V1EnvVar(
                                     name="WORDPRESS_DB_NAME",
                                     value_from=client.V1EnvVarSource(
                                         secret_key_ref=client.V1SecretKeySelector(
-                                            name="mysql-secret",
-                                            key="mysql-database"
+                                            name="mysql-secret", key="mysql-database"
                                         )
-                                    )
+                                    ),
                                 ),
                                 client.V1EnvVar(
                                     name="WORDPRESS_DB_USER",
                                     value_from=client.V1EnvVarSource(
                                         secret_key_ref=client.V1SecretKeySelector(
-                                            name="mysql-secret",
-                                            key="mysql-user"
+                                            name="mysql-secret", key="mysql-user"
                                         )
-                                    )
+                                    ),
                                 ),
                                 client.V1EnvVar(
                                     name="WORDPRESS_DB_PASSWORD",
                                     value_from=client.V1EnvVarSource(
                                         secret_key_ref=client.V1SecretKeySelector(
-                                            name="mysql-secret",
-                                            key="mysql-password"
+                                            name="mysql-secret", key="mysql-password"
                                         )
-                                    )
-                                )
+                                    ),
+                                ),
                             ],
                             volume_mounts=[
                                 client.V1VolumeMount(
-                                    name="wordpress-storage",
-                                    mount_path="/var/www/html"
+                                    name="wordpress-storage", mount_path="/var/www/html"
                                 ),
                                 client.V1VolumeMount(
-                                    name="setup-script",
-                                    mount_path="/scripts"
-                                )
-                            ]
+                                    name="setup-script", mount_path="/scripts"
+                                ),
+                            ],
                         )
                     ],
                     containers=[
@@ -251,43 +222,45 @@ def get_wordpress_deployment(store_id, db_password, store_url):
                             name="wordpress",
                             image="wordpress:latest",
                             ports=[
-                                client.V1ContainerPort(
-                                    container_port=80,
-                                    name="http"
-                                )
+                                client.V1ContainerPort(container_port=80, name="http")
                             ],
                             env=[
                                 client.V1EnvVar(
-                                    name="WORDPRESS_DB_HOST",
-                                    value="mysql:3306"
+                                    name="WORDPRESS_DB_HOST", value="mysql:3306"
                                 ),
                                 client.V1EnvVar(
                                     name="WORDPRESS_DB_NAME",
                                     value_from=client.V1EnvVarSource(
                                         secret_key_ref=client.V1SecretKeySelector(
-                                            name="mysql-secret",
-                                            key="mysql-database"
+                                            name="mysql-secret", key="mysql-database"
                                         )
-                                    )
+                                    ),
                                 ),
                                 client.V1EnvVar(
                                     name="WORDPRESS_DB_USER",
                                     value_from=client.V1EnvVarSource(
                                         secret_key_ref=client.V1SecretKeySelector(
-                                            name="mysql-secret",
-                                            key="mysql-user"
+                                            name="mysql-secret", key="mysql-user"
                                         )
-                                    )
+                                    ),
                                 ),
                                 client.V1EnvVar(
                                     name="WORDPRESS_DB_PASSWORD",
                                     value_from=client.V1EnvVarSource(
                                         secret_key_ref=client.V1SecretKeySelector(
-                                            name="mysql-secret",
-                                            key="mysql-password"
+                                            name="mysql-secret", key="mysql-password"
                                         )
-                                    )
-                                )
+                                    ),
+                                ),
+                                client.V1EnvVar(
+                                    name="WORDPRESS_CONFIG_EXTRA",
+                                    value=(
+                                        "if (isset($_SERVER['HTTP_X_FORWARDED_PROTO']) &&\n"
+                                        "    $_SERVER['HTTP_X_FORWARDED_PROTO'] === 'https') {\n"
+                                        "    $_SERVER['HTTPS'] = 'on';\n"
+                                        "}\n"
+                                    ),
+                                ),
                             ],
                             env_from=[
                                 client.V1EnvFromSource(
@@ -298,10 +271,9 @@ def get_wordpress_deployment(store_id, db_password, store_url):
                             ],
                             volume_mounts=[
                                 client.V1VolumeMount(
-                                    name="wordpress-storage",
-                                    mount_path="/var/www/html"
+                                    name="wordpress-storage", mount_path="/var/www/html"
                                 )
-                            ]
+                            ],
                         )
                     ],
                     volumes=[
@@ -309,43 +281,34 @@ def get_wordpress_deployment(store_id, db_password, store_url):
                             name="wordpress-storage",
                             persistent_volume_claim=client.V1PersistentVolumeClaimVolumeSource(
                                 claim_name="wordpress-pvc"
-                            )
+                            ),
                         ),
                         client.V1Volume(
                             name="setup-script",
                             config_map=client.V1ConfigMapVolumeSource(
-                                name="wp-setup-script",
-                                default_mode=0o755
-                            )
-                        )
-                    ]
-                )
-            )
-        )
+                                name="wp-setup-script", default_mode=0o755
+                            ),
+                        ),
+                    ],
+                ),
+            ),
+        ),
     )
+
 
 def get_wordpress_service(store_id):
     namespace = f"store-{store_id}"
     return client.V1Service(
         metadata=client.V1ObjectMeta(
-            name="wordpress",
-            namespace=namespace,
-            labels={
-                "app": "wordpress"
-            }
+            name="wordpress", namespace=namespace, labels={"app": "wordpress"}
         ),
         spec=client.V1ServiceSpec(
-            selector={
-                "app": "wordpress"
-            },
+            selector={"app": "wordpress"},
             ports=[
                 client.V1ServicePort(
-                    port=80,
-                    target_port=80,
-                    protocol="TCP",
-                    name="http"
+                    port=80, target_port=80, protocol="TCP", name="http"
                 )
             ],
-            type="ClusterIP"
-        )
+            type="ClusterIP",
+        ),
     )
