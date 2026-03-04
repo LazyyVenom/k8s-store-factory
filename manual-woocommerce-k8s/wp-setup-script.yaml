@@ -17,7 +17,14 @@ data:
     # 2. Core Setup
     if [ ! -f /var/www/html/wp-config.php ]; then
       wp core download --allow-root --force --skip-content
-      wp config create --dbname="${WORDPRESS_DB_NAME}" --dbuser="${WORDPRESS_DB_USER}" --dbpass="${WORDPRESS_DB_PASSWORD}" --dbhost="${WORDPRESS_DB_HOST}" --allow-root
+      
+      cat << 'EOF' > /tmp/extra-php.txt
+if (isset($_SERVER['HTTP_X_FORWARDED_PROTO']) && $_SERVER['HTTP_X_FORWARDED_PROTO'] === 'https') {
+    $_SERVER['HTTPS'] = 'on';
+}
+EOF
+
+      wp config create --dbname="${WORDPRESS_DB_NAME}" --dbuser="${WORDPRESS_DB_USER}" --dbpass="${WORDPRESS_DB_PASSWORD}" --dbhost="${WORDPRESS_DB_HOST}" --extra-php="$(cat /tmp/extra-php.txt)" --allow-root
       wp core install --url="${WP_SITE_URL}" --title="${WC_STORE_NAME}" --admin_user="${WP_ADMIN_USER}" --admin_password="${WP_ADMIN_PASSWORD}" --admin_email="${WP_ADMIN_EMAIL}" --skip-email --allow-root
     fi
 
@@ -107,6 +114,14 @@ data:
     HTTP_URL="http://${WP_SITE_URL#https://}"
     echo "Running search-replace: $HTTP_URL -> $WP_SITE_URL"
     wp search-replace "$HTTP_URL" "$WP_SITE_URL" --skip-columns=guid --all-tables --allow-root
+
+    # 6.1 Inject HTTPS Fix into wp-config.php if missing
+    if grep -q "require_once ABSPATH . 'wp-settings.php';" /var/www/html/wp-config.php; then
+      if ! grep -q "HTTP_X_FORWARDED_PROTO" /var/www/html/wp-config.php; then
+        sed -i "/require_once ABSPATH . 'wp-settings.php';/i \
+if (isset(\$_SERVER['HTTP_X_FORWARDED_PROTO']) && \$_SERVER['HTTP_X_FORWARDED_PROTO'] === 'https') {\n    \$_SERVER['HTTPS'] = 'on';\n}\n" /var/www/html/wp-config.php
+      fi
+    fi
 
     # 7. Clear WooCommerce CSS/transient cache so assets regenerate with HTTPS URLs
     wp transient delete --all --allow-root

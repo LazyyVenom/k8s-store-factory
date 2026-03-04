@@ -7,11 +7,19 @@ def get_ingress(store_id, store_url):
             name="store-ingress",
             namespace=namespace,
             annotations={
-                "nginx.ingress.kubernetes.io/proxy-body-size": "50m"
+                "nginx.ingress.kubernetes.io/proxy-body-size": "50m",
+                "cert-manager.io/cluster-issuer": "letsencrypt-prod",
+                "nginx.ingress.kubernetes.io/ssl-redirect": "true",
             }
         ),
         spec=client.V1IngressSpec(
             ingress_class_name="nginx",
+            tls=[
+                client.V1IngressTLS(
+                    hosts=[store_url],
+                    secret_name=f"store-{store_id}-tls"
+                )
+            ],
             rules=[
                 client.V1IngressRule(
                     host=store_url,
