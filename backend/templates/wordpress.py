@@ -12,7 +12,7 @@ def get_wordpress_config(store_id, db_password, store_url, sample_products):
             # Use manual-k8s values for defaults but allow override if needed?
             # Manual has "My WooCommerce Store"
             "WP_SITE_TITLE": "My WooCommerce Store",
-            "WP_SITE_URL": f"http://{store_url}",  # Parameterized as requested
+            "WP_SITE_URL": f"https://{store_url}",  # Parameterized as requested
             "WC_STORE_NAME": "My Awesome Store",
             "WC_STORE_ADDRESS": "123 MG Road",
             "WC_STORE_CITY": "Mumbai",
@@ -255,9 +255,18 @@ def get_wordpress_deployment(store_id, db_password, store_url):
                                 client.V1EnvVar(
                                     name="WORDPRESS_CONFIG_EXTRA",
                                     value=(
-                                        "if (isset($_SERVER['HTTP_X_FORWARDED_PROTO']) &&\n"
-                                        "    $_SERVER['HTTP_X_FORWARDED_PROTO'] === 'https') {\n"
+                                        "if (\n"
+                                        "    isset($_SERVER['HTTP_X_FORWARDED_PROTO']) &&\n"
+                                        "    $_SERVER['HTTP_X_FORWARDED_PROTO'] === 'https'\n"
+                                        ") {\n"
                                         "    $_SERVER['HTTPS'] = 'on';\n"
+                                        "}\n"
+                                        "\n"
+                                        "define('FORCE_SSL_ADMIN', true);\n"
+                                        "\n"
+                                        "if (isset($_SERVER['HTTPS']) && $_SERVER['HTTPS'] === 'on') {\n"
+                                        "    define('WP_HOME', 'https://' . $_SERVER['HTTP_HOST']);\n"
+                                        "    define('WP_SITEURL', 'https://' . $_SERVER['HTTP_HOST']);\n"
                                         "}\n"
                                     ),
                                 ),

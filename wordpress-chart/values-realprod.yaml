@@ -4,7 +4,7 @@ backend:
   image:
     repository: store-factory-backend
     tag: latest
-    pullPolicy: Never # IMPORTANT: using locally imported images
+    pullPolicy: IfNotPresent
 
   service:
     type: ClusterIP
@@ -16,25 +16,29 @@ backend:
     databaseUrl: sqlite:///store_factory.db
 
   resources:
-    requests:
-      cpu: 300m
-      memory: 256Mi
     limits:
-      cpu: 800m
-      memory: 768Mi
+      cpu: 1000m
+      memory: 1Gi
+    requests:
+      cpu: 500m
+      memory: 512Mi
 
   ingress:
     enabled: true
     className: nginx
     annotations:
+      cert-manager.io/cluster-issuer: letsencrypt-prod
+      nginx.ingress.kubernetes.io/ssl-redirect: "true"
       nginx.ingress.kubernetes.io/proxy-body-size: "50m"
-      nginx.ingress.kubernetes.io/ssl-redirect: "false"
     hosts:
       - host: k8sapi.bakkathon.com
         paths:
           - path: /
             pathType: Prefix
-    tls: [] # TLS handled by outer Nginx (for now)
+    tls:
+      - secretName: backend-tls
+        hosts:
+          - k8sapi.bakkathon.com
 
 frontend:
   replicaCount: 1
@@ -42,10 +46,10 @@ frontend:
   image:
     repository: store-factory-frontend
     tag: latest
-    pullPolicy: Never # IMPORTANT
+    pullPolicy: IfNotPresent
 
   service:
-    type: ClusterIP # DO NOT use LoadBalancer on VPS
+    type: LoadBalancer
     port: 80
     targetPort: 80
 
@@ -53,26 +57,30 @@ frontend:
     apiUrl: https://k8sapi.bakkathon.com/api
 
   resources:
-    requests:
-      cpu: 200m
-      memory: 128Mi
     limits:
       cpu: 500m
-      memory: 384Mi
+      memory: 512Mi
+    requests:
+      cpu: 250m
+      memory: 256Mi
 
   ingress:
     enabled: true
     className: nginx
     annotations:
-      nginx.ingress.kubernetes.io/ssl-redirect: "false"
+      cert-manager.io/cluster-issuer: letsencrypt-prod
+      nginx.ingress.kubernetes.io/ssl-redirect: "true"
     hosts:
       - host: k8s.bakkathon.com
         paths:
           - path: /
             pathType: Prefix
-    tls: [] # TLS handled by outer Nginx
+    tls:
+      - secretName: frontend-tls
+        hosts:
+          - k8s.bakkathon.com
 
 secrets:
-  jwtSecretKey: CHANGE_THIS_TO_A_REAL_SECRET_KEY
+  jwtSecretKey: THIS_IS_A_PRODUCTION_SECRET_KEY_FOR_NOW
 
 storeUrlSuffix: bakkathon.com

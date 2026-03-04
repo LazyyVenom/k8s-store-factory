@@ -79,9 +79,18 @@ spec:
                   key: mysql-password
             - name: WORDPRESS_CONFIG_EXTRA
               value: |
-                if (isset($_SERVER['HTTP_X_FORWARDED_PROTO']) &&
-                    $_SERVER['HTTP_X_FORWARDED_PROTO'] === 'https') {
+                if (
+                    isset($_SERVER['HTTP_X_FORWARDED_PROTO']) &&
+                    $_SERVER['HTTP_X_FORWARDED_PROTO'] === 'https'
+                ) {
                     $_SERVER['HTTPS'] = 'on';
+                }
+
+                define('FORCE_SSL_ADMIN', true);
+
+                if (isset($_SERVER['HTTPS']) && $_SERVER['HTTPS'] === 'on') {
+                    define('WP_HOME', 'https://' . $_SERVER['HTTP_HOST']);
+                    define('WP_SITEURL', 'https://' . $_SERVER['HTTP_HOST']);
                 }
           envFrom:
             - configMapRef:
