@@ -59,8 +59,6 @@ if (isset($_SERVER['HTTP_X_FORWARDED_PROTO']) && $_SERVER['HTTP_X_FORWARDED_PROT
 EOF
 
   wp config create --dbname="${WORDPRESS_DB_NAME}" --dbuser="${WORDPRESS_DB_USER}" --dbpass="${WORDPRESS_DB_PASSWORD}" --dbhost="${WORDPRESS_DB_HOST}" --extra-php="$(cat /tmp/extra-php.txt)" --allow-root
-  wp config set WP_HOME "${WP_SITE_URL}" --type=constant --allow-root
-  wp config set WP_SITEURL "${WP_SITE_URL}" --type=constant --allow-root
   wp core install --url="${WP_SITE_URL}" --title="${WC_STORE_NAME}" --admin_user="${WP_ADMIN_USER}" --admin_password="${WP_ADMIN_PASSWORD}" --admin_email="${WP_ADMIN_EMAIL}" --skip-email --allow-root
 fi
 
@@ -151,28 +149,11 @@ HTTP_URL="http://${WP_SITE_URL#https://}"
 echo "Running search-replace: $HTTP_URL -> $WP_SITE_URL"
 wp search-replace "$HTTP_URL" "$WP_SITE_URL" --skip-columns=guid --all-tables --allow-root
 
-# 6.1 Inject HTTPS Fix into wp-config.php
-if [ -f /var/www/html/wp-config.php ]; then
-  # Clean up any previously badly injected lines or old versions of the fix
-  sed -i '/HTTP_X_FORWARDED_PROTO/d' /var/www/html/wp-config.php || true
-  sed -i '/\$_SERVER\[.HTTPS.\]/d' /var/www/html/wp-config.php || true
-  sed -i '/FORCE_SSL_ADMIN/d' /var/www/html/wp-config.php || true
-  
-  cat << 'EOF' > /tmp/https-patch.txt
-if (isset($_SERVER['HTTP_X_FORWARDED_PROTO']) && $_SERVER['HTTP_X_FORWARDED_PROTO'] === 'https') {
-    $_SERVER['HTTPS'] = 'on';
-}
-EOF
-  LINE_NUM=$(grep -n "stop editing" /var/www/html/wp-config.php | cut -d: -f1 | head -n 1)
-  if [ -z "$LINE_NUM" ]; then
-    LINE_NUM=$(grep -n "ABSPATH" /var/www/html/wp-config.php | head -n 1 | cut -d: -f1)
-  fi
-  
-  if [ -n "$LINE_NUM" ]; then
-    head -n $((LINE_NUM - 1)) /var/www/html/wp-config.php > /tmp/wp-config-patched.php
-    cat /tmp/https-patch.txt >> /tmp/wp-config-patched.php
-    tail -n +$LINE_NUM /var/www/html/wp-config.php >> /tmp/wp-config-patched.php
-    cp /tmp/wp-config-patched.php /var/www/html/wp-config.php
+# 6.1 Inject HTTPS Fix into wp-config.php if missing
+if grep -q "require_once ABSPATH . 'wp-settings.php';" /var/www/html/wp-config.php; then
+  if ! grep -q "HTTP_X_FORWARDED_PROTO" /var/www/html/wp-config.php; then
+    sed -i "/require_once ABSPATH . 'wp-settings.php';/i \
+if (isset(\$_SERVER['HTTP_X_FORWARDED_PROTO']) && \$_SERVER['HTTP_X_FORWARDED_PROTO'] === 'https') {\n    \$_SERVER['HTTPS'] = 'on';\n}\n" /var/www/html/wp-config.php
   fi
 fi
 
