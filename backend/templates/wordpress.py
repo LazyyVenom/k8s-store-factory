@@ -53,12 +53,14 @@ if [ ! -f /var/www/html/wp-config.php ]; then
   wp core download --allow-root --force --skip-content
   
   cat << 'EOF' > /tmp/extra-php.txt
-if (isset($_SERVER['HTTP_X_FORWARDED_PROTO']) && $_SERVER['HTTP_X_FORWARDED_PROTO'] === 'https') {
-    $_SERVER['HTTPS'] = 'on';
-}
+$_SERVER['HTTPS'] = 'on';
+$_SERVER['SERVER_PORT'] = '443';
+define('FORCE_SSL_ADMIN', true);
 EOF
 
   wp config create --dbname="${WORDPRESS_DB_NAME}" --dbuser="${WORDPRESS_DB_USER}" --dbpass="${WORDPRESS_DB_PASSWORD}" --dbhost="${WORDPRESS_DB_HOST}" --extra-php="$(cat /tmp/extra-php.txt)" --allow-root
+  wp config set WP_HOME "${WP_SITE_URL}" --type=constant --allow-root
+  wp config set WP_SITEURL "${WP_SITE_URL}" --type=constant --allow-root
   wp core install --url="${WP_SITE_URL}" --title="${WC_STORE_NAME}" --admin_user="${WP_ADMIN_USER}" --admin_password="${WP_ADMIN_PASSWORD}" --admin_email="${WP_ADMIN_EMAIL}" --skip-email --allow-root
 fi
 
@@ -149,12 +151,22 @@ HTTP_URL="http://${WP_SITE_URL#https://}"
 echo "Running search-replace: $HTTP_URL -> $WP_SITE_URL"
 wp search-replace "$HTTP_URL" "$WP_SITE_URL" --skip-columns=guid --all-tables --allow-root
 
-# 6.1 Inject HTTPS Fix into wp-config.php if missing
-if grep -q "require_once ABSPATH . 'wp-settings.php';" /var/www/html/wp-config.php; then
-  if ! grep -q "HTTP_X_FORWARDED_PROTO" /var/www/html/wp-config.php; then
-    sed -i "/require_once ABSPATH . 'wp-settings.php';/i \
-if (isset(\$_SERVER['HTTP_X_FORWARDED_PROTO']) && \$_SERVER['HTTP_X_FORWARDED_PROTO'] === 'https') {\n    \$_SERVER['HTTPS'] = 'on';\n}\n" /var/www/html/wp-config.php
-  fi
+# 6.1 Ensure wp-config.php has unconditional HTTPS settings (idempotent)
+#     WORDPRESS_CONFIG_EXTRA env var writes to wp-config-docker.php, but the
+#     WP-CLI-generated wp-config.php does NOT include it. We inject directly.
+if ! grep -q "FORCE_SSL_ADMIN" /var/www/html/wp-config.php 2>/dev/null; then
+  echo "Injecting HTTPS settings into wp-config.php..."
+  wp config set WP_HOME "${WP_SITE_URL}" --type=constant --allow-root 2>/dev/null || true
+  wp config set WP_SITEURL "${WP_SITE_URL}" --type=constant --allow-root 2>/dev/null || true
+  wp config set FORCE_SSL_ADMIN true --raw --type=constant --allow-root 2>/dev/null || true
+  {
+    head -n 1 /var/www/html/wp-config.php
+    echo "\$_SERVER['HTTPS'] = 'on';"
+    echo "\$_SERVER['SERVER_PORT'] = '443';"
+    tail -n +2 /var/www/html/wp-config.php
+  } > /tmp/wp-config-patched.php
+  cp /tmp/wp-config-patched.php /var/www/html/wp-config.php
+  echo "HTTPS settings added to wp-config.php"
 fi
 
 # 7. Clear WooCommerce CSS/transient cache so assets regenerate with HTTPS URLs
