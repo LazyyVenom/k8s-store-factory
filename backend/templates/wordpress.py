@@ -129,13 +129,18 @@ while IFS='|' read -r name price description; do
     price=$(echo "$price" | xargs)
     desc=$(echo "$description" | xargs)
     SLUG=$(echo "$name" | tr '[:upper:]' '[:lower:]' | tr ' ' '-')
-    
+
     if ! wp post list --post_type=product --name="$SLUG" --format=ids --allow-root | grep -q .; then
       echo "Adding: $name"
       wp wc product create --name="$name" --type=simple --regular_price="$price" --description="$desc" --status=publish --user="${WP_ADMIN_USER}" --allow-root
     fi
   fi
 done <<< "$SAMPLE_PRODUCTS"
+
+# 6. Fix HTTP -> HTTPS in database (idempotent, safe on every restart)
+HTTP_URL="http://${WP_SITE_URL#https://}"
+echo "Running search-replace: $HTTP_URL -> $WP_SITE_URL"
+wp search-replace "$HTTP_URL" "$WP_SITE_URL" --skip-columns=guid --all-tables --allow-root
 
 echo "=== SETUP COMPLETE ==="
 """
@@ -255,19 +260,12 @@ def get_wordpress_deployment(store_id, db_password, store_url):
                                 client.V1EnvVar(
                                     name="WORDPRESS_CONFIG_EXTRA",
                                     value=(
-                                        "if (\n"
-                                        "    isset($_SERVER['HTTP_X_FORWARDED_PROTO']) &&\n"
-                                        "    $_SERVER['HTTP_X_FORWARDED_PROTO'] === 'https'\n"
-                                        ") {\n"
+                                        "if (isset($_SERVER['HTTP_X_FORWARDED_PROTO']) && "
+                                        "$_SERVER['HTTP_X_FORWARDED_PROTO'] == 'https') {\n"
                                         "    $_SERVER['HTTPS'] = 'on';\n"
                                         "}\n"
-                                        "\n"
-                                        "define('FORCE_SSL_ADMIN', true);\n"
-                                        "\n"
-                                        "if (isset($_SERVER['HTTPS']) && $_SERVER['HTTPS'] === 'on') {\n"
-                                        "    define('WP_HOME', 'https://' . $_SERVER['HTTP_HOST']);\n"
-                                        "    define('WP_SITEURL', 'https://' . $_SERVER['HTTP_HOST']);\n"
-                                        "}\n"
+                                        f"define('WP_HOME', 'https://{store_url}');\n"
+                                        f"define('WP_SITEURL', 'https://{store_url}');\n"
                                     ),
                                 ),
                             ],
